@@ -33,18 +33,18 @@ export const INSTRUCTIONS_FILEPATH = join(CONFIG_DIR, "instructions.md");
 export const OPENAI_TIMEOUT_MS =
   parseInt(process.env["OPENAI_TIMEOUT_MS"] || "0", 10) || undefined;
 
-export let DEFAULT_PROVIDER = "openai";
+export let DEFAULT_PROVIDER = "ollama";
 export let API_KEY = "";
 
 // Gracefully fallback to a provider if we have a missing API key.
-if (!process.env["OPENAI_API_KEY"]) {
-  if (process.env["GOOGLE_GENERATIVE_AI_API_KEY"]) {
-    DEFAULT_PROVIDER = "gemini";
-  } else if (process.env["OPENROUTER_API_KEY"]) {
-    DEFAULT_PROVIDER = "openrouter";
-  } else if (process.env["XAI_API_KEY"]) {
-    DEFAULT_PROVIDER = "xai";
-  }
+if (process.env["OPENAI_API_KEY"]) {
+  DEFAULT_PROVIDER = "openai";
+} else if (process.env["GOOGLE_GENERATIVE_AI_API_KEY"]) {
+  DEFAULT_PROVIDER = "gemini";
+} else if (process.env["OPENROUTER_API_KEY"]) {
+  DEFAULT_PROVIDER = "openrouter";
+} else if (process.env["XAI_API_KEY"]) {
+  DEFAULT_PROVIDER = "xai";
 }
 
 function getAPIKeyForProviderOrExit(provider: string): string {
@@ -128,6 +128,11 @@ function defaultModelsForProvider(provider: string): {
       return {
         agentic: "grok-3-mini-beta",
         fullContext: "grok-3-beta",
+      };
+    case "ollama":
+      return {
+        agentic: "codellama:7b-instruct", // sensible default for local Ollama
+        fullContext: "codellama:7b-instruct", // same as above
       };
     default:
       return {

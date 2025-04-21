@@ -36,6 +36,7 @@ import { render } from "ink";
 import meow from "meow";
 import path from "path";
 import React from "react";
+import { runFirstTimeWizard, configExists } from "./wizard.js";
 
 // Call this early so `tail -F "$TMPDIR/oai-codex/codex-cli-latest.log"` works
 // immediately. This must be run with DEBUG=1 for logging to work.
@@ -54,7 +55,8 @@ const cli = meow(
 
   Options
     -h, --help                 Show usage and exit
-    -m  --provider <provider>  Provider to use for completions (default: openai, options: openai, gemini, openrouter, ollama, xai)
+    -l, --local                Use local models via Ollama (overrides --provider)
+    -m  --provider <provider>  Provider to use for completions (default: ollama, options: openai, gemini, openrouter, ollama, xai)
     -m, --model <model>        Model to use for completions (default: o4-mini)
     -i, --image <path>         Path(s) to image files to include as input
     -v, --view <rollout>       Inspect a previously saved rollout instead of starting a session
@@ -138,6 +140,8 @@ const cli = meow(
           "Disable truncation of command stdout/stderr messages (show everything)",
         aliases: ["no-truncate"],
       },
+      local: { type: "boolean", aliases: ["l"] },
+      setup: { type: "boolean", description: "Run the interactive setup wizard" },
 
       // Experimental mode where whole directory is loaded in context and model is requested
       // to make code edits in a single pass.
@@ -187,6 +191,12 @@ if (cli.flags.help) {
   cli.showHelp();
 }
 
+// Manual setup flag: run wizard and exit
+if (cli.flags.setup) {
+  await runFirstTimeWizard();
+  process.exit(0);
+}
+
 // Handle config flag: open instructions file in editor and exit
 if (cli.flags.config) {
   // Ensure configuration and instructions file exist
@@ -206,9 +216,23 @@ if (cli.flags.config) {
 // API key handling
 // ---------------------------------------------------------------------------
 const fullContextMode = Boolean(cli.flags.fullContext);
-const provider = cli.flags.provider;
+const localFlag = Boolean(cli.flags.local);
+let provider = cli.flags.provider;
 
-let config = loadConfig(undefined, undefined, {
+if (localFlag) {
+  if (provider && provider !== "ollama") {
+    console.warn(
+      "[codex] --local flag is set; overriding --provider and using Ollama as the provider."
+    );
+  }
+  provider = "ollama";
+}
+
+const prompt = cli.input[0];
+const model = cli.flags.model;
+const imagePaths = cli.flags.image as Array<string> | undefined;
+
+const config = loadConfig(undefined, undefined, {
   cwd: process.cwd(),
   provider: provider,
   disableProjectDoc: Boolean(cli.flags.noProjectDoc),
@@ -216,15 +240,8 @@ let config = loadConfig(undefined, undefined, {
   isFullContext: fullContextMode,
 });
 
-const prompt = cli.input[0];
-const model = cli.flags.model;
-const imagePaths = cli.flags.image as Array<string> | undefined;
-
-config = {
-  ...config,
-  model: model ?? config.model,
-  provider: provider ?? config.provider,
-};
+config.model = model ?? config.model;
+config.provider = provider ?? config.provider;
 
 // Check for updates after loading config
 // This is important because we write state file in the config dir
@@ -464,3 +481,9 @@ if (process.stdin.isTTY) {
 // Ensure terminal clean‑up always runs, even when other code calls
 // `process.exit()` directly.
 process.once("exit", onExit);
+
+// If no config exists and provider is ollama or --local is set, run setup wizard
+if ((provider === "ollama" || localFlag) && !configExists()) {
+  await runFirstTimeWizard();
+  process.exit(0);
+}
