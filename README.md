@@ -39,6 +39,7 @@
 - [Security \& Responsible AI](#securityresponsibleai)
 - [License](#license)
 - [Zero Data Retention (ZDR) Organization Limitation](#zero-data-retention-zdr-organization-limitation)
+- [Ollama & Local Model Setup (New!)](#ollama--local-model-setup-new)
 
 </details>
 
@@ -276,26 +277,20 @@ npm link
 
 ## Configuration
 
-Codex looks for config files in **`~/.codex/`** (either YAML or JSON format).
+Codex looks for config files in **`~/.codex/`** (either YAML or JSON format). These are now managed automatically by the setup wizard for local/Ollama users.
 
 ```json
 // ~/.codex/config.json
 {
-  "model": "o4-mini", // Default model
-  "provider": "openai", // Default provider
-  "approvalMode": "suggest", // or auto-edit, full-auto
-  "fullAutoErrorMode": "ask-user" // or ignore-and-continue
+  "model": "codellama:7b-instruct", // Your selected local model
+  "provider": "ollama", // Provider set to ollama for local models
+  "baseURL": "http://localhost:11434/v1", // Ollama server address
+  "instructions": "" // (default, can be customized)
 }
 ```
 
-You can also define custom instructions:
-
-```md
-# ~/.codex/instructions.md
-
-- Always respond with emojis
-- Only use git commands if I explicitly mention you should
-```
+- To change your model or server, just run `open-codex --setup` again.
+- If you want to edit config manually, you still can, but the wizard is recommended for most users!
 
 ### Alternative AI Providers
 
@@ -324,7 +319,7 @@ Here's a list of all the providers and their default models:
 | openai     | OPENAI_API_KEY                | o4-mini                      | o3                         |
 | gemini     | GOOGLE_GENERATIVE_AI_API_KEY  | gemini-2.5-pro-preview-03-25 | gemini-2.0-flash           |
 | openrouter | OPENROUTER_API_KEY            | openai/o4-mini               | openai/o3                  |
-| ollama     | Not required                  | User must specify            | User must specify          |
+| ollama     | Not required                  | User must specify (via wizard) | User must specify (via wizard) |
 | xai        | XAI_API_KEY                   | grok-3-mini-beta             | grok-3-beta                |
 
 #### When using an alternative provider, make sure you have the correct environment variables set.
@@ -366,6 +361,37 @@ The default is `o4-mini`, but pass `--model gpt-4o` or set `model: gpt-4o` in yo
 You can also use models from other providers like Gemini and OpenRouter. See the [Configuration](#configuration) section for more details.
 
 </details>
+
+---
+
+## Ollama & Local Model Setup (New!)
+
+Codex CLI now supports seamless onboarding for local models via [Ollama](https://ollama.com/):
+
+- **First Run Wizard:**
+  - On first launch (or with `--setup`), Codex will auto-detect your Ollama server and list all local models.
+  - Pick a model interactively and save your config—no manual editing required!
+- **Manual Setup:**
+  - Run `open-codex --setup` at any time to reconfigure your local model or Ollama server address.
+- **Model Listing:**
+  - The wizard will show all models installed in your local Ollama instance.
+- **Custom Ollama Server:**
+  - Set the `OLLAMA_BASE_URL` environment variable or enter a custom address during setup.
+
+### Example Workflow
+
+```sh
+# Pull a model with Ollama first, e.g.
+ollama pull codellama:7b-instruct
+
+# Run the setup wizard
+open-codex --setup
+
+# Or just launch with --local (wizard will run if no config exists)
+open-codex --local "explain this codebase"
+```
+
+> The CLI will remember your chosen model and server address for future runs. You can always re-run the wizard with `open-codex --setup`.
 
 ---
 
